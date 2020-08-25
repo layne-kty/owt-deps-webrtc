@@ -178,8 +178,11 @@
   // one used by |view|.
   RTCVideoFrame *frame = self.videoFrame;
   if (!frame || frame.timeStampNs == _lastDrawnFrameTimeStampNs) {
+    //遇到空帧时，清除画面残留，主要为了解决在视频流切换时画面会残留上一个流的最后一帧数据(sll modify:20200810)
+    [self clearFrame];
     return;
   }
+
   [self ensureGLContext];
   glClear(GL_COLOR_BUFFER_BIT);
   if ([frame.buffer isKindOfClass:[RTCCVPixelBuffer class]]) {
@@ -201,15 +204,17 @@
     if (!_i420TextureCache) {
       _i420TextureCache = [[RTCI420TextureCache alloc] initWithContext:_glContext];
     }
-    [_i420TextureCache uploadFrameToTextures:frame];
-    [_shader applyShadingForFrameWithWidth:frame.width
-                                    height:frame.height
-                                  rotation:frame.rotation
-                                    yPlane:_i420TextureCache.yTexture
-                                    uPlane:_i420TextureCache.uTexture
-                                    vPlane:_i420TextureCache.vTexture];
+    if (_i420TextureCache) {
+      [_i420TextureCache uploadFrameToTextures:frame];
+      [_shader applyShadingForFrameWithWidth:frame.width
+                                      height:frame.height
+                                    rotation:frame.rotation
+                                      yPlane:_i420TextureCache.yTexture
+                                      uPlane:_i420TextureCache.uTexture
+                                      vPlane:_i420TextureCache.vTexture];
 
-    _lastDrawnFrameTimeStampNs = self.videoFrame.timeStampNs;
+      _lastDrawnFrameTimeStampNs = self.videoFrame.timeStampNs;
+    }
   }
 }
 
@@ -278,6 +283,12 @@
   if ([EAGLContext currentContext] != _glContext) {
     [EAGLContext setCurrentContext:_glContext];
   }
+}
+
+- (void)clearFrame {
+  [self ensureGLContext];
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 @end

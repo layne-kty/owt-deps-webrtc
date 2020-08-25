@@ -34,6 +34,8 @@ NS_EXTENSION_UNAVAILABLE_IOS("Rendering not available in app extensions.")
 
 - (instancetype)initWithCoder:(NSCoder *)aDecoder
                        shader:(id<RTCVideoViewShading>)shader NS_DESIGNATED_INITIALIZER;
+//清除OpenGL画布，作用是清除上一个画面
+- (void)clearFrame;
 
 @end
 
