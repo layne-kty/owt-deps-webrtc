@@ -27,7 +27,7 @@ std::string VectorToString(const std::vector<T>& vector) {
   rtc::StringBuilder sb;
   sb << "[";
   const char* separator = "";
-  for (const T& element : vector) {
+  for (const T element : vector) {
     sb << separator << rtc::ToString(element);
     separator = ",";
   }
