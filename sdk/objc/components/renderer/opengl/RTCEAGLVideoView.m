@@ -52,6 +52,7 @@
   // As timestamps should be unique between frames, will store last
   // drawn frame timestamp instead of the whole frame to reduce memory usage.
   int64_t _lastDrawnFrameTimeStampNs;
+  BOOL _renderSuccess;
 }
 
 @synthesize delegate = _delegate;
@@ -231,6 +232,16 @@
 
 - (void)renderFrame:(RTCVideoFrame *)frame {
   self.videoFrame = frame;
+
+  if (frame && !_renderSuccess) {
+      _renderSuccess = YES;
+
+      __weak RTCEAGLVideoView *weakSelf = self;
+      dispatch_async(dispatch_get_main_queue(), ^{
+        RTCEAGLVideoView *strongSelf = weakSelf;
+        [strongSelf.delegate renderSuccess:strongSelf];
+      });
+  }
 }
 
 #pragma mark - Private
@@ -286,6 +297,9 @@
 }
 
 - (void)clearFrame {
+  _renderSuccess = NO;
+  self.videoFrame = nil;
+
   [self ensureGLContext];
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
