@@ -226,7 +226,9 @@
   __weak RTCEAGLVideoView *weakSelf = self;
   dispatch_async(dispatch_get_main_queue(), ^{
     RTCEAGLVideoView *strongSelf = weakSelf;
-    [strongSelf.delegate videoView:strongSelf didChangeVideoSize:size];
+    if ([strongSelf.delegate respondsToSelector:@selector(videoView:didChangeVideoSize:)]) {
+      [strongSelf.delegate videoView:strongSelf didChangeVideoSize:size];
+    }
   });
 }
 
@@ -239,7 +241,9 @@
       __weak RTCEAGLVideoView *weakSelf = self;
       dispatch_async(dispatch_get_main_queue(), ^{
         RTCEAGLVideoView *strongSelf = weakSelf;
-        [strongSelf.delegate renderSuccess:strongSelf];
+        if ([strongSelf.delegate respondsToSelector:@selector(renderSuccess:)]) {
+          [strongSelf.delegate renderSuccess:strongSelf];
+        }
       });
   }
 }
