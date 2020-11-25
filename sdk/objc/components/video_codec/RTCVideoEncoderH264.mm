@@ -27,7 +27,10 @@
 #import "base/RTCVideoFrame.h"
 #import "base/RTCVideoFrameBuffer.h"
 #import "components/video_frame_buffer/RTCCVPixelBuffer.h"
+#import "components/video_frame_buffer/RTCH264Buffer.h"
 #import "helpers.h"
+#import "sdk/objc/api/peerconnection/RTCEncodedImage+Private.h"
+#import "components/video_codec/RTCCodecSpecificInfoH264+Private.h"
 
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "common_video/h264/profile_level_id.h"
@@ -311,6 +314,34 @@ NSUInteger GetMaxSampleRate(const webrtc::H264::ProfileLevelId &profile_level_id
       return 0;
   }
 }
+
+const char kAnnexBHeaderBytes[4] = {0, 0, 0, 1};
+
+static std::unique_ptr<webrtc::RTPFragmentationHeader> getRTPFragmentationHeader(webrtc::EncodedImage* encoded_image) {
+
+  auto fragmentation = absl::make_unique<webrtc::RTPFragmentationHeader>();
+
+  //如果是关键帧，则加上sps和pps
+  if (encoded_image->_frameType == webrtc::VideoFrameType::kVideoFrameKey) {
+    const size_t kNumSlices = 4;
+    fragmentation->VerifyAndAllocateFragmentationHeader(kNumSlices);
+    fragmentation->fragmentationOffset[0] = sizeof(kAnnexBHeaderBytes);
+    fragmentation->fragmentationLength[0] = 9;
+    fragmentation->fragmentationOffset[1] = fragmentation->fragmentationOffset[0] + fragmentation->fragmentationLength[0] + sizeof(kAnnexBHeaderBytes);
+    fragmentation->fragmentationLength[1] = 4;
+    fragmentation->fragmentationOffset[2] = fragmentation->fragmentationOffset[1] + fragmentation->fragmentationLength[1] + sizeof(kAnnexBHeaderBytes);
+    fragmentation->fragmentationLength[2] = 31;
+    fragmentation->fragmentationOffset[3] = fragmentation->fragmentationOffset[2] + fragmentation->fragmentationLength[2] + sizeof(kAnnexBHeaderBytes);
+    fragmentation->fragmentationLength[3] = encoded_image->size() - fragmentation->fragmentationOffset[3];
+  } else {
+    const size_t kNumSlices = 1;
+    fragmentation->VerifyAndAllocateFragmentationHeader(kNumSlices);
+    fragmentation->fragmentationOffset[0] = sizeof(kAnnexBHeaderBytes);
+    fragmentation->fragmentationLength[0] = encoded_image->size() - fragmentation->fragmentationOffset[0];
+  }
+
+  return fragmentation;
+}
 }  // namespace
 
 @implementation RTCVideoEncoderH264 {
@@ -388,6 +419,61 @@ NSUInteger GetMaxSampleRate(const webrtc::H264::ProfileLevelId &profile_level_id
   return [self resetCompressionSessionWithPixelFormat:kNV12PixelFormat];
 }
 
+- (NSInteger)fakeEncode:(RTCVideoFrame *)frame
+      codecSpecificInfo:(nullable id<RTCCodecSpecificInfo>)codecSpecificInfo
+            frameTypes:(NSArray<NSNumber *> *)frameTypes {
+  RTCH264Buffer *rtcH264Buffer = (RTCH264Buffer *)frame.buffer;
+  if (!rtcH264Buffer) {
+    RTC_LOG(LS_ERROR) << "frame buffer is null";
+    return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+  }
+
+  RTCEncodedImage *encodedImage = [[RTCEncodedImage alloc] init];
+  encodedImage.buffer = rtcH264Buffer.h264Buffer;//[[NSData alloc] initWithData:rtcH264Buffer.h264Buffer];
+  encodedImage.encodedWidth = frame.width;
+  encodedImage.encodedHeight = frame.height;
+  encodedImage.completeFrame = YES;
+  encodedImage.frameType = rtcH264Buffer.isKeyframe ? RTCFrameTypeVideoFrameKey : RTCFrameTypeVideoFrameDelta;
+  encodedImage.captureTimeMs = frame.timeStampNs / rtc::kNumNanosecsPerMillisec;
+  encodedImage.timeStamp = frame.timeStamp;
+  encodedImage.rotation = frame.rotation;
+  encodedImage.contentType = RTCVideoContentTypeUnspecified;
+  encodedImage.flags = webrtc::VideoSendTiming::kInvalid;
+  encodedImage.qp = @30;
+
+  //2、构造RTCCodecSpecificInfo
+  RTCCodecSpecificInfoH264 *codecSpecificInfoH264 = [[RTCCodecSpecificInfoH264 alloc] init];
+  codecSpecificInfoH264.packetizationMode = RTCH264PacketizationModeNonInterleaved;
+
+  //3、构造RTCRtpFragmentationHeader
+  //（1）如果编码的数据是CMSampleBuffer（avccBuffer），就需要用H264CMSampleBufferToAnnexBBuffer进行转换。在使用iOS系统自带的videotoolbox硬编码的时候，会出现此种情况
+  // std::unique_ptr<rtc::Buffer> buffer(new rtc::Buffer());
+  // RTCRtpFragmentationHeader *header;
+  // {
+  //   std::unique_ptr<webrtc::RTPFragmentationHeader> header_cpp;
+  //   bool result =
+  //       H264CMSampleBufferToAnnexBBuffer(sampleBuffer, isKeyframe, buffer.get(), &header_cpp);
+  //   header = [[RTCRtpFragmentationHeader alloc] initWithNativeFragmentationHeader:header_cpp.get()];
+  //   if (!result) {
+  //     return;
+  //   }
+  // }
+  //（2）如果编码的数据是AnnexBBuffer，类型为NSData
+  webrtc::EncodedImage nativeEncodedImage = [encodedImage nativeEncodedImage];
+  std::unique_ptr<webrtc::RTPFragmentationHeader> nativeFragmentationHeader = getRTPFragmentationHeader(&nativeEncodedImage);
+  RTCRtpFragmentationHeader *fragmentationHeader = [[RTCRtpFragmentationHeader alloc]
+    initWithNativeFragmentationHeader:nativeFragmentationHeader.get()];
+
+  //4、发送数据
+  BOOL res = _callback(encodedImage, codecSpecificInfoH264, fragmentationHeader);
+  if (!res) {
+    RTC_LOG(LS_ERROR) << "fake Encode callback failed";
+    return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+  }
+
+  return WEBRTC_VIDEO_CODEC_OK;
+}
+
 - (NSInteger)encode:(RTCVideoFrame *)frame
     codecSpecificInfo:(nullable id<RTCCodecSpecificInfo>)codecSpecificInfo
            frameTypes:(NSArray<NSNumber *> *)frameTypes {
@@ -396,6 +482,11 @@ NSUInteger GetMaxSampleRate(const webrtc::H264::ProfileLevelId &profile_level_id
   if (!_callback || !_compressionSession) {
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
   }
+
+  if ([frame.buffer isKindOfClass:[RTCH264Buffer class]]) {
+    return [self fakeEncode:frame codecSpecificInfo:codecSpecificInfo frameTypes:frameTypes];
+  }
+
   BOOL isKeyframeRequired = NO;
 
   // Get a pixel buffer from the pool and copy frame data over.
