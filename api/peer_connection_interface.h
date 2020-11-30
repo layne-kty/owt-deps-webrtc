@@ -665,7 +665,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     int offer_to_receive_audio = kUndefined;
 
     bool voice_activity_detection = true;
-    bool ice_restart = false;
+    bool ice_restart = true;//FIXME:暂时先写死，后续继续优化，在需要重启ice的地方在将RTCOfferAnswerOptions中的ice_restart值进行修改
 
     // If true, will offer to BUNDLE audio/video/data together. Not to be
     // confused with RTCP mux (multiplexing RTP and RTCP together).
