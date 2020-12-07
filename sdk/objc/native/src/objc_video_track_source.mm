@@ -138,20 +138,10 @@ void ObjCVideoTrackSource::OnCapturedFrame(RTCVideoFrame *frame) {
   // Applying rotation is only supported for legacy reasons and performance is
   // not critical here.
   VideoRotation rotation = static_cast<VideoRotation>(frame.rotation);
-  // if (apply_rotation() && rotation != kVideoRotation_0) {
-  //   buffer = I420Buffer::Rotate(*buffer->ToI420(), rotation);
-  //   rotation = kVideoRotation_0;
-  // }
-  //sll modify：（1）当采集的buffer颜色空间问BGRA时，且帧方向kVideoRotation_0，则会跳过帧数据的转换，
-  //造成在渲染的时候经帧数据误认为NV12，由于渲染只支持I420和NV12，即而出现渲染拉升即颜色异常。因此在此
-  //去掉kVideoRotation_0的检测。目前从效果及源码描述来看，不会造成效率问题。(20200729)
-  //（2）当浏览器和iOS同时登陆一个账号时，iOS创建会议，然后浏览器结束会议，iOS出现短暂黄屏，主要是因为在结束会议时，会移除sink，而且会把
-  //apply_rotation()的值职位false，从造成不会将RGBA转换为I420，造成黄屏。目前的修改方法是去掉“if (apply_rotation())”判断条件，
-  //从代码来看，推测此处修改可能会造成效率受影响。经多次测试验证，暂未发现问题（20200812）
-  // if (apply_rotation()) {
+  if (apply_rotation() && rotation != kVideoRotation_0) {
     buffer = I420Buffer::Rotate(*buffer->ToI420(), rotation);
     rotation = kVideoRotation_0;
-  // }
+  }
 
   OnFrame(VideoFrame::Builder()
               .set_video_frame_buffer(buffer)
