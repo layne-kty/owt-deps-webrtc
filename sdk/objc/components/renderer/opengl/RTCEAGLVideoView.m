@@ -16,6 +16,7 @@
 #import "RTCDisplayLinkTimer.h"
 #import "RTCI420TextureCache.h"
 #import "RTCNV12TextureCache.h"
+#import "RTCRGBTextureCache.h"
 #import "base/RTCLogging.h"
 #import "base/RTCVideoFrame.h"
 #import "base/RTCVideoFrameBuffer.h"
@@ -47,6 +48,7 @@
   // setNeedsDisplay)
   BOOL _isDirty;
   id<RTCVideoViewShading> _shader;
+  RTCRGBTextureCache *_rgbTextureCache;
   RTCNV12TextureCache *_nv12TextureCache;
   RTCI420TextureCache *_i420TextureCache;
   // As timestamps should be unique between frames, will store last
@@ -183,19 +185,37 @@
   [self ensureGLContext];
   glClear(GL_COLOR_BUFFER_BIT);
   if ([frame.buffer isKindOfClass:[RTCCVPixelBuffer class]]) {
-    if (!_nv12TextureCache) {
-      _nv12TextureCache = [[RTCNV12TextureCache alloc] initWithContext:_glContext];
-    }
-    if (_nv12TextureCache) {
-      [_nv12TextureCache uploadFrameToTextures:frame];
-      [_shader applyShadingForFrameWithWidth:frame.width
-                                      height:frame.height
-                                    rotation:frame.rotation
-                                      yPlane:_nv12TextureCache.yTexture
-                                     uvPlane:_nv12TextureCache.uvTexture];
-      [_nv12TextureCache releaseTextures];
+    RTCCVPixelBuffer *buffer = (RTCCVPixelBuffer*)frame.buffer;
+    const OSType pixelFormat = CVPixelBufferGetPixelFormatType(buffer.pixelBuffer);
+    if (pixelFormat == kCVPixelFormatType_32BGRA || pixelFormat == kCVPixelFormatType_32ARGB) {
+      if (!_rgbTextureCache) {
+        _rgbTextureCache = [[RTCRGBTextureCache alloc] initWithContext:_glContext];
+      }
+      if (_rgbTextureCache) {
+        [_rgbTextureCache uploadFrameToTextures:frame];
+        [_shader applyShadingForFrameWithWidth:frame.width
+                                        height:frame.height
+                                      rotation:frame.rotation
+                                      rgbPlane:_rgbTextureCache.rgbTexture];
+        [_rgbTextureCache releaseTextures];
 
-      _lastDrawnFrameTimeStampNs = self.videoFrame.timeStampNs;
+        _lastDrawnFrameTimeStampNs = self.videoFrame.timeStampNs;
+      }
+    } else {
+      if (!_nv12TextureCache) {
+        _nv12TextureCache = [[RTCNV12TextureCache alloc] initWithContext:_glContext];
+      }
+      if (_nv12TextureCache) {
+        [_nv12TextureCache uploadFrameToTextures:frame];
+        [_shader applyShadingForFrameWithWidth:frame.width
+                                        height:frame.height
+                                      rotation:frame.rotation
+                                        yPlane:_nv12TextureCache.yTexture
+                                       uvPlane:_nv12TextureCache.uvTexture];
+        [_nv12TextureCache releaseTextures];
+
+        _lastDrawnFrameTimeStampNs = self.videoFrame.timeStampNs;
+      }
     }
   } else {
     if (!_i420TextureCache) {
