@@ -35,6 +35,8 @@ RTC_OBJC_EXPORT
 
 - (void)videoView:(id<RTCVideoRenderer>)videoView didChangeVideoSize:(CGSize)size;
 
+- (void)renderSuccess:(id<RTCVideoRenderer>)videoView;
+
 @end
 
 NS_ASSUME_NONNULL_END

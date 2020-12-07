@@ -39,6 +39,7 @@
 // from the display link callback so atomicity is required.
 @property(atomic, strong) RTCVideoFrame *videoFrame;
 @property(nonatomic, readonly) GLKView *glkView;
+@property(atomic, assign) BOOL renderSuccess;
 @end
 
 @implementation RTCEAGLVideoView {
@@ -59,6 +60,7 @@
 @synthesize delegate = _delegate;
 @synthesize videoFrame = _videoFrame;
 @synthesize glkView = _glkView;
+@synthesize renderSuccess = _renderSuccess;
 
 - (instancetype)initWithFrame:(CGRect)frame {
   return [self initWithFrame:frame shader:[[RTCDefaultShader alloc] init]];
@@ -154,6 +156,15 @@
   }
 }
 
+- (void)clearFrame {
+  self.renderSuccess = NO;
+  self.videoFrame = nil;
+
+  [self ensureGLContext];
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+}
+
 #pragma mark - UIView
 
 - (void)setNeedsDisplay {
@@ -180,6 +191,7 @@
   // one used by |view|.
   RTCVideoFrame *frame = self.videoFrame;
   if (!frame || frame.timeStampNs == _lastDrawnFrameTimeStampNs) {
+    [self clearFrame];
     return;
   }
   [self ensureGLContext];
@@ -246,6 +258,16 @@
 
 - (void)renderFrame:(RTCVideoFrame *)frame {
   self.videoFrame = frame;
+
+  if (self.videoFrame && !self.renderSuccess) {
+      self.renderSuccess = YES;
+
+      __weak RTCEAGLVideoView *weakSelf = self;
+      dispatch_async(dispatch_get_main_queue(), ^{
+        RTCEAGLVideoView *strongSelf = weakSelf;
+        [strongSelf.delegate renderSuccess:strongSelf];
+      });
+  }
 }
 
 #pragma mark - Private
