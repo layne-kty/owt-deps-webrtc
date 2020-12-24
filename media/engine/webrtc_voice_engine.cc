@@ -363,7 +363,7 @@ bool WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
 // Set and adjust gain control options.
 #if defined(WEBRTC_IOS)
   // On iOS, VPIO provides built-in AGC.
-  options.auto_gain_control = false;
+  options.auto_gain_control = true;
   options.experimental_agc = false;
   RTC_LOG(LS_INFO) << "Always disable AGC on iOS. Use built-in instead.";
 #elif defined(WEBRTC_ANDROID)

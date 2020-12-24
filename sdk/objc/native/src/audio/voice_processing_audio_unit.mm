@@ -272,7 +272,7 @@ bool VoiceProcessingAudioUnit::Initialize(Float64 sample_rate) {
     agc_was_enabled_by_default = 1;
   } else {
     // AGC was initially disabled => try to enable it explicitly.
-    UInt32 enable_agc = 1;
+    UInt32 enable_agc = 0;
     result =
         AudioUnitSetProperty(vpio_unit_,
                              kAUVoiceIOProperty_VoiceProcessingEnableAGC,
