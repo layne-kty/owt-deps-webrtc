@@ -39,6 +39,7 @@
 // from the display link callback so atomicity is required.
 @property(atomic, strong) RTCVideoFrame *videoFrame;
 @property(nonatomic, readonly) GLKView *glkView;
+@property(atomic, assign) BOOL firstFrameReceived;
 @end
 
 @implementation RTCEAGLVideoView {
@@ -59,6 +60,7 @@
 @synthesize delegate = _delegate;
 @synthesize videoFrame = _videoFrame;
 @synthesize glkView = _glkView;
+@synthesize firstFrameReceived = _firstFrameReceived;
 @synthesize rotationOverride = _rotationOverride;
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -160,6 +162,15 @@
   }
 }
 
+- (void)clearVideoView {
+  self.firstFrameReceived = NO;
+  self.videoFrame = nil;
+
+  [self ensureGLContext];
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+}
+
 #pragma mark - UIView
 
 - (void)setNeedsDisplay {
@@ -256,6 +267,16 @@
 
 - (void)renderFrame:(RTCVideoFrame *)frame {
   self.videoFrame = frame;
+
+  if (self.videoFrame && !self.firstFrameReceived) {
+      self.firstFrameReceived = YES;
+
+      __weak RTCEAGLVideoView *weakSelf = self;
+      dispatch_async(dispatch_get_main_queue(), ^{
+        RTCEAGLVideoView *strongSelf = weakSelf;
+        [strongSelf.delegate videoView:strongSelf receivedFirstFrame:strongSelf.videoFrame];
+      });
+  }
 }
 
 #pragma mark - Private
