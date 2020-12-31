@@ -16,6 +16,7 @@
 
 #include "api/video/i420_buffer.h"
 #include "sdk/objc/native/src/objc_frame_buffer.h"
+#import "components/video_frame_buffer/RTCH264Buffer.h"
 
 @interface RTCObjCVideoSourceAdapter ()
 @property(nonatomic) webrtc::ObjCVideoTrackSource *objCVideoTrackSource;
@@ -61,7 +62,33 @@ void ObjCVideoTrackSource::OnOutputFormatRequest(int width, int height, int fps)
   video_adapter()->OnOutputFormatRequest(format);
 }
 
+void ObjCVideoTrackSource::OnCapturedH264Frame(RTCVideoFrame *frame) {
+  const int64_t timestamp_us = frame.timeStampNs / rtc::kNumNanosecsPerMicrosec;
+  const int64_t translated_timestamp_us =
+      timestamp_aligner_.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
+
+  rtc::scoped_refptr<VideoFrameBuffer> buffer;
+  if ([frame.buffer isKindOfClass:[RTCH264Buffer class]]) {
+    buffer = new rtc::RefCountedObject<ObjCFrameBuffer>((RTCH264Buffer *)frame.buffer);
+  }
+  // Applying rotation is only supported for legacy reasons and performance is
+  // not critical here.
+  VideoRotation rotation = static_cast<VideoRotation>(frame.rotation);
+  // rotation = kVideoRotation_0;
+
+  OnFrame(VideoFrame::Builder()
+              .set_video_frame_buffer(buffer)
+              .set_rotation(rotation)
+              .set_timestamp_us(translated_timestamp_us)
+              .build());
+}
+
 void ObjCVideoTrackSource::OnCapturedFrame(RTCVideoFrame *frame) {
+  if ([frame.buffer isKindOfClass:[RTCH264Buffer class]]) {
+    OnCapturedH264Frame(frame);
+    return;
+  }
+
   const int64_t timestamp_us = frame.timeStampNs / rtc::kNumNanosecsPerMicrosec;
   const int64_t translated_timestamp_us =
       timestamp_aligner_.TranslateTimestamp(timestamp_us, rtc::TimeMicros());

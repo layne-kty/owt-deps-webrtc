@@ -379,6 +379,8 @@ if (is_ios || is_mac) {
         "objc/api/video_frame_buffer/RTCNativeMutableI420Buffer.mm",
         "objc/components/video_frame_buffer/RTCCVPixelBuffer.h",
         "objc/components/video_frame_buffer/RTCCVPixelBuffer.mm",
+        "objc/components/video_frame_buffer/RTCH264Buffer.h",
+        "objc/components/video_frame_buffer/RTCH264Buffer.mm",
       ]
       deps = [
         ":base_objc",
@@ -992,6 +994,7 @@ if (is_ios || is_mac) {
         "objc/Framework/Headers/WebRTC/RTCAudioSource.h",
         "objc/Framework/Headers/WebRTC/RTCAudioTrack.h",
         "objc/Framework/Headers/WebRTC/RTCCVPixelBuffer.h",
+        "objc/Framework/Headers/WebRTC/RTCH264Buffer.h",
         "objc/Framework/Headers/WebRTC/RTCCallbackLogger.h",
         "objc/Framework/Headers/WebRTC/RTCCameraPreviewView.h",
         "objc/Framework/Headers/WebRTC/RTCCameraVideoCapturer.h",
@@ -1292,6 +1295,7 @@ if (is_ios || is_mac) {
           "objc/components/video_codec/RTCVideoEncoderFactoryH265.h",
           "objc/components/video_codec/RTCVideoEncoderH265.h",
           "objc/components/video_frame_buffer/RTCCVPixelBuffer.h",
+          "objc/components/video_frame_buffer/RTCH264Buffer.h",
           "objc/helpers/RTCCameraPreviewView.h",
           "objc/helpers/RTCDispatcher.h",
           "objc/helpers/UIDevice+RTCDevice.h",
@@ -1486,6 +1490,7 @@ if (is_ios || is_mac) {
           "objc/components/video_codec/RTCVideoEncoderFactoryH265.h",
           "objc/components/video_codec/RTCVideoEncoderH265.h",
           "objc/components/video_frame_buffer/RTCCVPixelBuffer.h",
+          "objc/components/video_frame_buffer/RTCH264Buffer.h",
           "objc/helpers/RTCDispatcher.h",
         ]
         if (!build_with_chromium) {

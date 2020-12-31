@@ -48,6 +48,8 @@ class ObjCVideoTrackSource : public rtc::AdaptedVideoTrackSource {
   void OnOutputFormatRequest(int width, int height, int fps);
 
  private:
+  void OnCapturedH264Frame(RTCVideoFrame *frame);
+
   rtc::VideoBroadcaster broadcaster_;
   rtc::TimestampAligner timestamp_aligner_;
 
