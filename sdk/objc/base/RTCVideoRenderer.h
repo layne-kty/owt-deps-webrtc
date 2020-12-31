@@ -31,7 +31,7 @@ RTC_OBJC_EXPORT
 @end
 
 RTC_OBJC_EXPORT
-@protocol RTCVideoViewDelegate
+@protocol RTCVideoViewDelegate <NSObject>
 
 - (void)videoView:(id<RTCVideoRenderer>)videoView didChangeVideoSize:(CGSize)size;
 
