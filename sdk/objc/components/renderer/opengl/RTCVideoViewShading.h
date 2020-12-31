@@ -36,6 +36,11 @@ RTC_OBJC_EXPORT
                                yPlane:(GLuint)yPlane
                               uvPlane:(GLuint)uvPlane;
 
+/** Callback for RGB frames. Each plane is given as a texture. */
+- (void)applyShadingForFrameWithWidth:(int)width
+                               height:(int)height
+                             rotation:(RTCVideoRotation)rotation
+                             rgbPlane:(GLuint)yPlane;
 @end
 
 NS_ASSUME_NONNULL_END

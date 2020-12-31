@@ -26,6 +26,7 @@ static const int kYTextureUnit = 0;
 static const int kUTextureUnit = 1;
 static const int kVTextureUnit = 2;
 static const int kUvTextureUnit = 1;
+static const int kRgbTextureUnit = 0;
 
 // Fragment shader converts YUV values from input textures into a final RGB
 // pixel. The conversion formula is from http://www.fourcc.org/fccyvrgb.php.
@@ -69,6 +70,18 @@ static const char kNV12FragmentShaderSource[] =
   "                                     1.0);\n"
   "  }\n";
 
+  static const char kRGBFragmentShaderSource[] =
+  SHADER_VERSION
+  "precision mediump float;"
+  FRAGMENT_SHADER_IN " vec2 v_texcoord;\n"
+  "uniform lowp sampler2D s_textureRGB;\n"
+  FRAGMENT_SHADER_OUT
+  "void main() {\n"
+  "    mediump vec4 rgb;\n"
+  "    rgb = " FRAGMENT_SHADER_TEXTURE "(s_textureRGB, v_texcoord);\n"
+  "    " FRAGMENT_SHADER_COLOR " = vec4(rgb.b, rgb.g, rgb.r, rgb.a);\n"
+  "  }\n";
+
 @implementation RTCDefaultShader {
   GLuint _vertexBuffer;
   GLuint _vertexArray;
@@ -77,6 +90,7 @@ static const char kNV12FragmentShaderSource[] =
 
   GLuint _i420Program;
   GLuint _nv12Program;
+  GLuint _rgbProgram;
 }
 
 - (void)dealloc {
@@ -130,6 +144,27 @@ static const char kNV12FragmentShaderSource[] =
   glUseProgram(_nv12Program);
   glUniform1i(ySampler, kYTextureUnit);
   glUniform1i(uvSampler, kUvTextureUnit);
+
+  return YES;
+}
+
+- (BOOL)createAndSetupRGBProgram {
+  NSAssert(!_rgbProgram, @"RGB program already created");
+  _rgbProgram = RTCCreateProgramFromFragmentSource(kRGBFragmentShaderSource);
+  if (!_rgbProgram) {
+    return NO;
+  }
+  GLint rgbSampler = glGetUniformLocation(_rgbProgram, "s_textureRGB");
+
+  if (rgbSampler < 0) {
+    RTCLog(@"Failed to get uniform variable locations in RGB shader");
+    glDeleteProgram(rgbSampler);
+    rgbSampler = 0;
+    return NO;
+  }
+
+  glUseProgram(rgbSampler);
+  glUniform1i(rgbSampler, kRgbTextureUnit);
 
   return YES;
 }
@@ -200,6 +235,27 @@ static const char kNV12FragmentShaderSource[] =
 
   glActiveTexture(static_cast<GLenum>(GL_TEXTURE0 + kUvTextureUnit));
   glBindTexture(GL_TEXTURE_2D, uvPlane);
+
+  glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+}
+
+- (void)applyShadingForFrameWithWidth:(int)width
+                               height:(int)height
+                             rotation:(RTCVideoRotation)rotation
+                             rgbPlane:(GLuint)rgbPlane {
+  if (![self prepareVertexBufferWithRotation:rotation]) {
+    return;
+  }
+
+  if (!_rgbProgram && ![self createAndSetupRGBProgram]) {
+    RTCLog(@"Failed to setup RGB shader");
+    return;
+  }
+
+  glUseProgram(_rgbProgram);
+
+  glActiveTexture(static_cast<GLenum>(GL_TEXTURE0 + kRgbTextureUnit));
+  glBindTexture(GL_TEXTURE_2D, rgbPlane);
 
   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
