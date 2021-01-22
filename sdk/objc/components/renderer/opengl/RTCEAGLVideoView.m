@@ -320,6 +320,10 @@
   }
 }
 
+- (void)resetRenderStatus {
+  _renderSuccess = NO;
+}
+
 - (void)clearFrame {
   _renderSuccess = NO;
   self.videoFrame = nil;

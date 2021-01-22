@@ -37,6 +37,8 @@ NS_EXTENSION_UNAVAILABLE_IOS("Rendering not available in app extensions.")
 //清除OpenGL画布，作用是清除上一个画面
 - (void)clearFrame;
 
+/// 重置RTCEAGLVideoView的渲染状态，重置后rendersuccess为NO
+- (void)resetRenderStatus;
 @end
 
 NS_ASSUME_NONNULL_END
