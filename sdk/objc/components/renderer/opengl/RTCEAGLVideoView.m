@@ -254,6 +254,7 @@
 
 - (void)renderFrame:(RTCVideoFrame *)frame {
   self.videoFrame = frame;
+
   if (frame && !_renderSuccess) {
       _renderSuccess = YES;
 
@@ -262,19 +263,6 @@
         RTCEAGLVideoView *strongSelf = weakSelf;
         if ([strongSelf.delegate respondsToSelector:@selector(renderSuccess:)]) {
           [strongSelf.delegate renderSuccess:strongSelf];
-        }
-      });
-  } 
-
-// 将frame抛出去
-  if (frame)
-  {
-    /* code */
-    __weak RTCEAGLVideoView *weakSelf = self;
-          dispatch_async(dispatch_get_main_queue(), ^{
-        RTCEAGLVideoView *strongSelf = weakSelf;
-        if ([strongSelf.delegate respondsToSelector:@selector(renderOutFrame:)]) {
-          [strongSelf.delegate renderOutFrame:frame];
         }
       });
   }
@@ -332,6 +320,10 @@
   }
 }
 
+- (void)resetRenderStatus {
+  _renderSuccess = NO;
+}
+
 - (void)clearFrame {
   _renderSuccess = NO;
   self.videoFrame = nil;
@@ -339,21 +331,6 @@
   [self ensureGLContext];
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-
-- (UIImage *)saveViewToImage{
-   //   UIGraphicsBeginImageContext(self.bounds.size);   
-   // [self.layer renderInContext:UIGraphicsGetCurrentContext()];   
-   // UIImage *image = UIGraphicsGetImageFromCurrentImageContext();  
-   // UIGraphicsEndImageContext();   
-   // return image;
-
-
-   UIGraphicsBeginImageContextWithOptions(self.glkView.bounds.size, self.glkView.opaque, 0);
-    [self.glkView.layer renderInContext:UIGraphicsGetCurrentContext()];
-    UIImage *snap = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    return snap;
 }
 
 @end
