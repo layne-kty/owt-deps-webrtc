@@ -35,6 +35,7 @@ RTC_OBJC_EXPORT
 
 - (void)videoView:(id<RTCVideoRenderer>)videoView didChangeVideoSize:(CGSize)size;
 - (void)renderSuccess:(id<RTCVideoRenderer>)videoView;
+- (void)renderOutFrame:(nullable RTCVideoFrame *)frame;
 
 @end
 

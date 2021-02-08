@@ -254,7 +254,10 @@
 
 - (void)renderFrame:(RTCVideoFrame *)frame {
   self.videoFrame = frame;
-
+  if (!frame)
+  {
+    NSLog(@"收到了远端的数据为空");
+  }
   if (frame && !_renderSuccess) {
       _renderSuccess = YES;
 
@@ -263,6 +266,18 @@
         RTCEAGLVideoView *strongSelf = weakSelf;
         if ([strongSelf.delegate respondsToSelector:@selector(renderSuccess:)]) {
           [strongSelf.delegate renderSuccess:strongSelf];
+        }
+      });
+  }
+  // 将frame抛出去
+  if (frame)
+  {
+    /* code */
+    __weak RTCEAGLVideoView *weakSelf = self;
+          dispatch_async(dispatch_get_main_queue(), ^{
+        RTCEAGLVideoView *strongSelf = weakSelf;
+        if ([strongSelf.delegate respondsToSelector:@selector(renderOutFrame:)]) {
+          [strongSelf.delegate renderOutFrame:frame];
         }
       });
   }
